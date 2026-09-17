@@ -36,9 +36,10 @@ API Token 在 cflow 网页端 **设置 → Access Token** 创建：用途选 **A
 
 ### 下载安装
 
-1. 打开 [Releases](https://github.com/Vespa314/cflow_app/releases) 页面
-2. 在最新版本（置顶）的 Assets 里下载 `.apk` 文件
-3. 手机上打开下载的文件，按提示允许「安装未知应用」后完成安装
+1. 下载 APK，任选其一：
+   - **直达最新版**（始终指向最新 Release，点击直接下载）：[cflow.apk](https://github.com/Vespa314/cflow_app/releases/latest/download/cflow.apk)
+   - 或打开 [Releases](https://github.com/Vespa314/cflow_app/releases) 页面，在具体版本的 Assets 里下载
+2. 手机上打开下载的文件，按提示允许「安装未知应用」后完成安装
 4. 打开 APP，网页端 **设置 → API Token → 扫码连接 APP** 生成二维码，扫码配对后即可使用
 
 已安装的用户也可以在 APP 内 **设置 → 检查更新** 直接升级。
