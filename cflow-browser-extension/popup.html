@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <img class="brand-logo" src="icons/icon32.png" alt="">
+        <span class="brand-name">保存到 cflow</span>
+      </div>
+      <div class="topbar-actions">
+        <button id="btn-refresh" class="icon-btn" title="刷新空间列表" aria-label="刷新空间列表">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/>
+            <path d="M21 3v5h-5"/>
+          </svg>
+        </button>
+        <button id="btn-settings" class="icon-btn" title="设置" aria-label="设置">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 主视图：转发网页 / 记笔记 -->
+    <main id="view-main" class="view">
+      <div class="tabs" role="tablist">
+        <button id="tab-forward" class="tab active" type="button" role="tab" aria-selected="true">转发网页</button>
+        <button id="tab-note" class="tab" type="button" role="tab" aria-selected="false">记笔记</button>
+      </div>
+
+      <div id="pane-forward">
+        <div class="page-card">
+          <img id="page-favicon" class="favicon" src="" alt="" hidden>
+          <svg id="page-favicon-fallback" class="favicon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M2 12h20"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <div class="page-meta">
+            <div id="page-title" class="page-title">—</div>
+            <div id="page-url" class="page-url">—</div>
+          </div>
+        </div>
+
+        <div class="section-label">保存到空间</div>
+        <div id="space-list" class="space-list"></div>
+      </div>
+
+      <div id="pane-note" class="hidden">
+        <textarea id="note-editor" class="note-editor" rows="7" placeholder="随手记点什么…&#10;&#10;支持 Markdown，Ctrl/⌘ + Enter 快速发送" spellcheck="false"></textarea>
+        <div id="note-draft-hint" class="draft-hint" hidden></div>
+        <div class="note-actions">
+          <select id="note-space" class="note-space" aria-label="发送到空间"></select>
+          <button id="btn-send-note" class="btn-primary btn-send" type="button" disabled>发送</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- 设置视图 -->
+    <main id="view-settings" class="view hidden">
+      <div class="form">
+        <label class="field">
+          <span class="field-label">服务地址</span>
+          <input id="input-server" type="text" placeholder="https://cflow.cc" spellcheck="false" autocomplete="off">
+        </label>
+        <label class="field">
+          <span class="field-label">API Token</span>
+          <input id="input-token" type="password" placeholder="粘贴 Access Token" spellcheck="false" autocomplete="off">
+          <span class="field-hint">在网页「设置 → Access Token」中创建：用途选 API，权限选「所有权限」</span>
+        </label>
+        <div id="settings-error" class="error" hidden></div>
+        <button id="btn-save" class="btn-primary">
+          <span id="btn-save-text">测试连接并保存</span>
+        </button>
+      </div>
+    </main>
+
+    <div id="cflow-toast" class="toast" hidden></div>
+  </div>
+  <script src="common.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

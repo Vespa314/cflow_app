@@ -1,0 +1,312 @@
+/* 页面内摘录选择层：样式全部自带、类名带 cflow- 前缀，避免与页面样式互相干扰。
+   common.js 的 renderSpaceList/toast 使用的类名在此一并作用域化复用。 */
+
+.cflow-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 13px;
+  color: #1c1c1e;
+  animation: cflow-fade-in 0.14s ease;
+}
+
+.cflow-overlay * {
+  box-sizing: border-box;
+}
+
+.cflow-dialog {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  padding: 14px;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);
+  animation: cflow-pop-in 0.16s ease;
+}
+
+@keyframes cflow-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cflow-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ---------- 顶栏 ---------- */
+
+.cflow-overlay .cflow-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.cflow-overlay .cflow-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1c1c1e;
+}
+
+.cflow-overlay .cflow-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #78716c;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.cflow-overlay .cflow-close:hover {
+  background: #f5f5f4;
+  color: #1c1c1e;
+}
+
+/* ---------- 来源卡片 ---------- */
+
+.cflow-overlay .page-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e7e5e4;
+  border-radius: 10px;
+  background: #fafaf9;
+}
+
+.cflow-overlay .favicon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  border-radius: 3px;
+  color: #a8a29e;
+}
+
+.cflow-overlay .page-meta {
+  min-width: 0;
+}
+
+.cflow-overlay .page-title {
+  font-weight: 600;
+  line-height: 1.4;
+  color: #1c1c1e;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-all;
+}
+
+.cflow-overlay .page-url {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #78716c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cflow-overlay .quote-card {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e7e5e4;
+  border-radius: 10px;
+  background: #fafaf9;
+}
+
+.cflow-overlay .quote-text {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #78716c;
+  white-space: pre-wrap;
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- 空间列表（common.js renderSpaceList 的类名） ---------- */
+
+.cflow-overlay .section-label {
+  margin: 14px 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #a8a29e;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.cflow-overlay .space-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.cflow-overlay .space-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cflow-overlay .space-list::-webkit-scrollbar-thumb {
+  background: #e7e5e4;
+  border-radius: 3px;
+}
+
+.cflow-overlay .space-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #1c1c1e;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cflow-overlay .space-item:hover:not(:disabled) {
+  background: #f5f5f4;
+}
+
+.cflow-overlay .space-item:disabled {
+  cursor: default;
+}
+
+.cflow-overlay .space-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #eef2ff;
+  font-size: 13px;
+}
+
+/* 矢量图标（lucide / iconify / 特殊名）统一 15px，颜色跟随文字 */
+.cflow-overlay .space-icon svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+}
+
+/* emoji / 文字图标：宽度随内容自适应，避免长文字溢出固定 22px 盒子 */
+.cflow-overlay .space-icon.is-text {
+  width: auto;
+  min-width: 22px;
+  max-width: 54px;
+  padding: 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.cflow-overlay .space-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  color: #1c1c1e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cflow-overlay .space-count {
+  flex: none;
+  font-size: 11px;
+  color: #a8a29e;
+  font-variant-numeric: tabular-nums;
+}
+
+.cflow-overlay .space-badge {
+  flex: none;
+  font-size: 10px;
+  color: #6366f1;
+  background: #eef2ff;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.cflow-overlay .space-item.saved {
+  background: #f0fdf4;
+}
+
+.cflow-overlay .space-item.saved .space-badge,
+.cflow-overlay .space-item.saved .space-count {
+  display: none;
+}
+
+.cflow-overlay .space-item.saved .space-name {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.cflow-overlay .list-empty {
+  padding: 20px 0;
+  text-align: center;
+  color: #a8a29e;
+}
+
+/* ---------- Toast（common.js toast 的元素） ---------- */
+
+.cflow-overlay .toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  max-width: 300px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: #1c1c1e;
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  animation: cflow-fade-in 0.18s ease;
+  word-break: break-all;
+  z-index: 10;
+}
+
+.cflow-overlay .toast.toast-error {
+  background: #dc2626;
+}
+
+.cflow-overlay [hidden] {
+  display: none !important;
+}
