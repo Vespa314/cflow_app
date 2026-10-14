@@ -21,7 +21,8 @@ time_progress）/ `lucide:kebab-name` 与存量 PascalCase lucide 名 / 其他
 `prefix:name`（iconify，如 `mdi:home`）。矢量图标经 `api.iconify.design` 拉取
 并缓存到本地，断网时回退为字面文本。
 
-零依赖、零构建，纯原生 Manifest V3 实现。图标取自 `web/public/cflow.jpg`。
+零依赖、零构建，纯原生 Manifest V3 实现。图标由 `scripts/update_brand_icons.py`
+从 `web/public/cflow_logo.png` 生成。
 
 ## 文件结构
 
