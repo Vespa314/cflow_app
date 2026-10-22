@@ -27,7 +27,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     text: info.selectionText || "",
     url: info.pageUrl || tab.url || "",
     title: tab.title || "",
-    favicon: tab.favicon || tab.favIconUrl || "",
+    favicon: tab.favIconUrl || "",
   };
   await chrome.storage.session.set({ pendingCapture: capture });
 

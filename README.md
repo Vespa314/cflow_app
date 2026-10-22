@@ -14,9 +14,14 @@
 
 ### 安装
 
+**方式一 · Chrome 官方应用商店（推荐）**：打开 [cflow 快存 - Chrome 应用商店](https://chromewebstore.google.com/detail/cflow-%E5%BF%AB%E5%AD%98/loifopopfaaeelijpgdpoodlaeobboaa)，点 **添加至 Chrome** 即可，Edge 等 Chromium 内核浏览器也可以直接从该链接安装。安装后由商店自动保持更新。
+
+**方式二 · 本仓库源码手动加载**（适合自行修改插件）：
+
 1. 点本页面绿色 **Code** 按钮 → **Download ZIP**，解压到任意位置
 2. 打开 `chrome://extensions`（Edge 为 `edge://extensions`），右上角开启 **开发者模式**
 3. 点 **加载已解压的扩展程序**，选择解压出来的 **`cflow-browser-extension`** 目录（注意是里面的插件目录，不是最外层文件夹）
+4. 改动代码后，回到 `chrome://extensions` 在插件卡片上点刷新（↻）即可生效
 
 ### 配置
 
@@ -25,10 +30,6 @@
 3. 点 **测试连接并保存** 即可开始使用
 
 API Token 在 cflow 网页端 **设置 → Access Token** 创建：用途选 **API**，权限默认「所有权限」，有效空间默认全部。
-
-### 更新
-
-重新 Download ZIP 解压后覆盖旧目录，回到 `chrome://extensions` 在插件卡片上点刷新（↻）。
 
 ## 安卓 APP
 

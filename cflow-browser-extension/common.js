@@ -1,3 +1,7 @@
+// 整文件包 IIFE 并把公开符号挂到 globalThis：本文件会被 executeScript 重复注入到同一
+// 页面（同页二次摘录），顶层 const/let 重声明会直接抛 SyntaxError 被 catch 吞掉，
+// 导致二次摘录无响应。挂 globalThis 后重复注入只是覆盖引用，幂等安全。
+(() => {
 "use strict";
 
 // popup 与页面悬浮层（overlay）共用的配置、API 与空间列表逻辑，统一在此维护。
@@ -6,8 +10,26 @@
 
 const DEFAULT_SPACE_NAME = "默认空间";
 const DEFAULT_SERVER = "https://cflow.cc";
-// 后端 api/v1/memo.go 的 maxContentLength 为 65535 字节，留出余量截断
+// 后端 api/v1/memo.go 的 maxContentLength 为 65535 **字节**（Go len() 按字节），
+// 截断必须按 UTF-8 字节计：按字符数截 60000 时中文（每字 3 字节）约 2.2 万字即超限被拒
 const MAX_TEXT_LENGTH = 60000;
+
+// 按 UTF-8 字节数截断（超限补省略号，省略号也计入上限）
+function truncateUtf8Bytes(text, maxBytes) {
+  const bytes = new TextEncoder().encode(text);
+  if (bytes.length <= maxBytes) return text;
+  const keep = maxBytes - 1;
+  const cut = bytes.slice(0, keep);
+  // 避免把一个多字节字符切成两半产生非法序列
+  let end = cut.length;
+  while (end > 0 && (cut[end - 1] & 0xc0) === 0x80) end -= 1;
+  if (end > 0 && (cut[end - 1] & 0x80) !== 0) {
+    const lead = cut[end - 1];
+    const need = lead >= 0xf0 ? 4 : lead >= 0xe0 ? 3 : lead >= 0xc0 ? 2 : 1;
+    if (end + need > keep) end -= 1;
+  }
+  return new TextDecoder().decode(cut.slice(0, end)) + "…";
+}
 
 const state = {
   server: "",
@@ -114,7 +136,7 @@ function markdownLink(title, url) {
 function buildSelectionContent(capture) {
   if (!capture || !capture.text) throw new Error("未获取到选中内容，请重新选择后再试");
   let text = capture.text;
-  if (text.length > MAX_TEXT_LENGTH) text = text.slice(0, MAX_TEXT_LENGTH) + "…";
+  if (text.length > MAX_TEXT_LENGTH) text = truncateUtf8Bytes(text, MAX_TEXT_LENGTH);
   return text + "\n\n来源：" + markdownLink(capture.title, capture.url || "");
 }
 
@@ -373,3 +395,46 @@ function toast(msg, isError) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (el.hidden = true), 2600);
 }
+
+
+Object.assign(globalThis, {
+  DEFAULT_SPACE_NAME,
+  DEFAULT_SERVER,
+  MAX_TEXT_LENGTH,
+  state,
+  ICONIFY_API_HOST,
+  ICON_CACHE_KEY,
+  ICON_CACHE_MAX,
+  SPECIAL_ICON_SVGS,
+  iconSvgMemCache,
+  toastTimer,
+  truncateUtf8Bytes,
+  loadSettings,
+  persist,
+  isConfigured,
+  normalizeServer,
+  requestHostPermission,
+  api,
+  fetchSpaces,
+  describeError,
+  markdownLink,
+  buildSelectionContent,
+  pascalToKebab,
+  resolveIconRef,
+  readIconStore,
+  writeIconStore,
+  fetchIconSvg,
+  loadIconSvg,
+  getIconSvg,
+  setIconSvg,
+  applySpaceIcon,
+  spaceDisplayName,
+  spaceIcon,
+  formatCount,
+  orderedSpaces,
+  renderSpaceList,
+  setSpaceListSaving,
+  markSaved,
+  toast,
+});
+})();

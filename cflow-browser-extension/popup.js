@@ -147,7 +147,7 @@ async function sendNote() {
     toast("先写点内容再发送吧", true);
     return;
   }
-  if (content.length > MAX_TEXT_LENGTH) content = content.slice(0, MAX_TEXT_LENGTH) + "…";
+  if (content.length > MAX_TEXT_LENGTH) content = truncateUtf8Bytes(content, MAX_TEXT_LENGTH);
   const spaceId = noteSpaceSelect().value;
 
   noteSaving = true;
