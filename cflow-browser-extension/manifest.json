@@ -2,9 +2,17 @@
   "manifest_version": 3,
   "name": "cflow 快存",
   "description": "一键把网页保存为 cflow 笔记，或随时速记一条到指定空间",
-  "version": "1.1.0",
-  "permissions": ["storage", "tabs", "contextMenus", "scripting", "activeTab"],
-  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "version": "1.2.0",
+  "permissions": [
+    "storage",
+    "contextMenus",
+    "scripting",
+    "activeTab"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },

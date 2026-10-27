@@ -4,8 +4,18 @@
 // （state/loadSettings/renderSpaceList/markSaved/toast/buildSelectionContent 等）。
 
 (async function () {
+  // 先解除上一实例的 keydown 监听：只移除 DOM 的话旧监听会随摘录次数累积泄漏
+  if (typeof window.__cflowOverlayClose === "function") {
+    try {
+      window.__cflowOverlayClose();
+    } catch (e) {
+      /* 旧实例已残缺则忽略 */
+    }
+  }
   const OLD = document.getElementById("cflow-overlay");
   if (OLD) OLD.remove();
+  // 标记本页已注入样式：background 据此跳过重复 insertCSS
+  window.__cflowOverlayReady = true;
 
   await loadSettings();
   const { pendingCapture } = await chrome.storage.session.get("pendingCapture");
@@ -106,12 +116,15 @@
   function close() {
     root.remove();
     document.removeEventListener("keydown", onKeydown);
+    window.__cflowOverlayClose = null;
   }
 
   function onKeydown(e) {
     if (e.key === "Escape") close();
   }
   document.addEventListener("keydown", onKeydown);
+  // 供同页二次摘录时卸载本实例（DOM + 监听）
+  window.__cflowOverlayClose = close;
 
   /* ---------- 保存 ---------- */
 
@@ -151,6 +164,8 @@
           setTimeout(close, 700);
         } else {
           toast((resp && resp.error) || "保存失败，请重试", true);
+          // 还原按钮文案：不还原会永久停留在"保存中…"，按钮虽解禁但视觉已坏
+          if (nameEl) nameEl.textContent = spaceDisplayName(space);
           saving = false;
           setSpaceListSaving(false);
         }

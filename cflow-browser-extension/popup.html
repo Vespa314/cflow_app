@@ -10,6 +10,13 @@
       <div class="brand">
         <img class="brand-logo" src="icons/icon32.png" alt="">
         <span class="brand-name">保存到 cflow</span>
+        <button id="btn-note-mode" class="note-mode-btn" type="button" hidden title="在当前网页记笔记">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20h9"/>
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+          </svg>
+          记笔记模式
+        </button>
       </div>
       <div class="topbar-actions">
         <button id="btn-refresh" class="icon-btn" title="刷新空间列表" aria-label="刷新空间列表">
@@ -64,11 +71,18 @@
 
     <!-- 设置视图 -->
     <main id="view-settings" class="view hidden">
-      <div class="form">
-        <label class="field">
-          <span class="field-label">服务地址</span>
-          <input id="input-server" type="text" placeholder="https://cflow.cc" spellcheck="false" autocomplete="off">
-        </label>
+      <div id="settings-form" class="form">
+        <button id="btn-qr-login" class="btn-primary btn-qr-login" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <path d="M14 14h3v3h-3zM21 14v.01M14 21v.01M17.5 17.5M21 21h-3"/>
+          </svg>
+          扫码登录
+        </button>
+        <p class="qr-login-hint">打开手机 cflow APP「扫一扫」，确认后自动登录</p>
+        <div class="divider"><span>或使用 Access Token</span></div>
         <label class="field">
           <span class="field-label">API Token</span>
           <input id="input-token" type="password" placeholder="粘贴 Access Token" spellcheck="false" autocomplete="off">
@@ -78,11 +92,24 @@
         <button id="btn-save" class="btn-primary">
           <span id="btn-save-text">测试连接并保存</span>
         </button>
+        <p class="server-line">服务器 · https://cflow.cc</p>
+      </div>
+      <div id="qr-login-pane" class="qr-pane hidden">
+        <div class="qr-box">
+          <canvas id="qr-canvas" width="10" height="10"></canvas>
+          <div id="qr-expired-mask" class="qr-expired-mask" hidden>已过期</div>
+        </div>
+        <div id="qr-status" class="qr-status">正在生成二维码…</div>
+        <div class="qr-actions">
+          <button id="btn-qr-back" class="btn-ghost" type="button">返回</button>
+          <button id="btn-refresh-qr" class="btn-primary" type="button" hidden>刷新二维码</button>
+        </div>
       </div>
     </main>
 
     <div id="cflow-toast" class="toast" hidden></div>
   </div>
+  <script src="vendor/qrcodegen.js"></script>
   <script src="common.js"></script>
   <script src="popup.js"></script>
 </body>

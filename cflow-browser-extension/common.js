@@ -40,9 +40,10 @@ const state = {
 
 /* ---------- 本地存储 ---------- */
 
+// 服务地址固定为官方站，不再可配置；state.server 仅作 api() 的拼接常量
 async function loadSettings() {
-  const data = await chrome.storage.local.get(["server", "token", "spaces", "lastSpaceId"]);
-  state.server = data.server || "";
+  const data = await chrome.storage.local.get(["token", "spaces", "lastSpaceId"]);
+  state.server = DEFAULT_SERVER;
   state.token = data.token || "";
   state.spaces = Array.isArray(data.spaces) ? data.spaces : [];
   state.lastSpaceId = data.lastSpaceId ?? null;
@@ -52,17 +53,19 @@ function persist(patch) {
   return chrome.storage.local.set(patch);
 }
 
+// 本地草稿键（popup 面板 / 页内编辑器），换账号时须一并清除
+const NOTE_DRAFT_KEY = "noteDraft";
+const PAGE_DRAFT_KEY = "pageNoteDraft";
+
+async function clearDrafts() {
+  await persist({ [NOTE_DRAFT_KEY]: null, [PAGE_DRAFT_KEY]: null });
+}
+
 function isConfigured() {
-  return !!(state.server && state.token);
+  return !!state.token;
 }
 
 /* ---------- API ---------- */
-
-function normalizeServer(raw) {
-  let s = (raw || "").trim().replace(/\/+$/, "");
-  if (s && !/^https?:\/\//i.test(s)) s = "https://" + s;
-  return s;
-}
 
 async function requestHostPermission(server) {
   let origin;
@@ -77,17 +80,14 @@ async function requestHostPermission(server) {
 }
 
 async function api(path, options = {}) {
+  // 未登录（扫码登录流程）时不带 Authorization，空 Bearer 反而干扰部分网关
+  const headers = { "Content-Type": "application/json" };
+  if (state.token) headers.Authorization = "Bearer " + state.token;
   let res;
   try {
-    res = await fetch(state.server + path, {
-      ...options,
-      headers: {
-        Authorization: "Bearer " + state.token,
-        "Content-Type": "application/json",
-      },
-    });
+    res = await fetch(state.server + path, { ...options, headers });
   } catch {
-    const err = new Error("无法连接服务器，请检查服务地址");
+    const err = new Error("无法连接服务器，请检查网络");
     err.network = true;
     throw err;
   }
@@ -110,7 +110,7 @@ async function fetchSpaces() {
   const spaces = await api("/api/v1/space");
   if (!Array.isArray(spaces)) throw new Error("空间列表响应格式异常");
   state.spaces = spaces;
-  await persist({ spaces, spacesFetchedAt: Date.now() });
+  await persist({ spaces });
 }
 
 function describeError(err) {
@@ -136,7 +136,9 @@ function markdownLink(title, url) {
 function buildSelectionContent(capture) {
   if (!capture || !capture.text) throw new Error("未获取到选中内容，请重新选择后再试");
   let text = capture.text;
-  if (text.length > MAX_TEXT_LENGTH) text = truncateUtf8Bytes(text, MAX_TEXT_LENGTH);
+  // 按字节判定：中文每字符 3 字节，按 UTF-16 长度判会漏放大 ~3 倍的量,
+  // 未截断直接超后端 65535 字节上限被拒
+  if (new TextEncoder().encode(text).length > MAX_TEXT_LENGTH) text = truncateUtf8Bytes(text, MAX_TEXT_LENGTH);
   return text + "\n\n来源：" + markdownLink(capture.title, capture.url || "");
 }
 
@@ -225,7 +227,51 @@ async function fetchIconSvg(prefix, name) {
   if (!icon || !icon.body) return null; // not_found 的图标不会出现在 icons 里
   const w = icon.width || data.width || 24;
   const h = icon.height || data.height || 24;
-  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + " " + h + '" fill="currentColor" aria-hidden="true">' + icon.body + "</svg>";
+  return sanitizeIconSvg(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + " " + h + '" fill="currentColor" aria-hidden="true">' + icon.body + "</svg>"
+  );
+}
+
+// 净化 iconify 返回的 SVG：API 被劫持时 body 可携带事件属性/外链资源，
+// 经 innerHTML 注入的目标含特权 popup（可读 token）。只保留基本图形元素与安全属性。
+function sanitizeIconSvg(svg) {
+  const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+  const svgEl = doc.documentElement;
+  if (!svgEl || svgEl.nodeName.toLowerCase() !== "svg") return null;
+  const ALLOWED_TAGS = new Set([
+    "svg", "path", "circle", "rect", "ellipse", "line", "polyline", "polygon",
+    "g", "defs", "title", "mask", "clippath",
+  ]);
+  const ALLOWED_ATTR = new Set([
+    "xmlns", "viewbox", "width", "height", "fill", "stroke", "stroke-width",
+    "stroke-linecap", "stroke-linejoin", "stroke-dasharray", "fill-rule",
+    "clip-rule", "d", "cx", "cy", "r", "x", "y", "rx", "ry", "x1", "y1", "x2",
+    "y2", "points", "transform", "fill-opacity", "stroke-opacity", "opacity",
+    "mask", "clip-path", "aria-hidden",
+  ]);
+  const attrSafe = (attr) => {
+    const name = attr.name.toLowerCase();
+    if (name.startsWith("on")) return false;
+    if ((name === "href" || name === "xlink:href") && attr.value.includes(":")) return false;
+    return ALLOWED_ATTR.has(name);
+  };
+  const walk = (el) => {
+    for (const child of Array.from(el.children)) {
+      if (!ALLOWED_TAGS.has(child.nodeName.toLowerCase())) {
+        child.remove();
+        continue;
+      }
+      for (const attr of Array.from(child.attributes)) {
+        if (!attrSafe(attr)) child.removeAttribute(attr.name);
+      }
+      walk(child);
+    }
+  };
+  for (const attr of Array.from(svgEl.attributes)) {
+    if (!attrSafe(attr)) svgEl.removeAttribute(attr.name);
+  }
+  walk(svgEl);
+  return new XMLSerializer().serializeToString(svgEl);
 }
 
 async function loadIconSvg(ref) {
@@ -383,6 +429,443 @@ function markSaved(btn) {
   btn.querySelector(".space-name").textContent = "已保存 ✓";
 }
 
+/* ---------- # 标签联想（popup 与页内编辑器共用） ---------- */
+
+// 每空间缓存一份标签：popup 生命周期短；background 随 service worker 回收自然过期
+const tagCache = new Map();
+
+async function fetchTags(spaceId) {
+  const key = spaceId || "";
+  if (tagCache.has(key)) return tagCache.get(key);
+  const list = await api("/api/v1/tag?spaceId=" + encodeURIComponent(key));
+  // 含空白的多词标签插入 #tag 会破坏解析，不进候选
+  const tags = (Array.isArray(list) ? list : []).filter((t) => typeof t === "string" && t && !/\s/.test(t));
+  tagCache.set(key, tags);
+  return tags;
+}
+
+// textarea 没有光标坐标 API。用一份样式同步的离屏镜像量出第 position 个字符的位置，
+// 返回值相对 textarea 边框盒左上角、尚未扣除滚动（与 textarea-caret 同一约定）。
+function caretInTextarea(textarea, position) {
+  const computed = window.getComputedStyle(textarea);
+  const pos = Math.max(0, Math.min(position, textarea.value.length));
+  const host = document.createElement("div");
+  for (const [prop, value] of [
+    ["position", "fixed"],
+    ["left", "0"],
+    ["top", "0"],
+    ["opacity", "0"],
+    ["pointer-events", "none"],
+    ["overflow", "visible"],
+    ["margin", "0"],
+    ["padding", "0"],
+  ]) {
+    host.style.setProperty(prop, value, "important");
+  }
+  // 挂进 shadow，避免宿主页面的 div/span 样式把镜像排版打歪
+  const shadow = host.attachShadow({ mode: "open" });
+  const mirror = document.createElement("div");
+  const style = mirror.style;
+  style.whiteSpace = "pre-wrap";
+  style.wordWrap = "break-word";
+  style.overflowWrap = "break-word";
+  style.position = "absolute";
+  style.top = "0";
+  style.left = "0";
+  const copied = [
+    "direction", "boxSizing", "width", "height", "overflowX", "overflowY",
+    "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "borderStyle",
+    "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+    "fontStyle", "fontVariant", "fontWeight", "fontStretch", "fontSize", "lineHeight", "fontFamily",
+    "textAlign", "textTransform", "textIndent", "letterSpacing", "wordSpacing", "tabSize",
+  ];
+  for (const name of copied) style[name] = computed[name];
+  // clientWidth 已去掉滚动条和左右边框，用它当镜像宽度，换行才和编辑框一致
+  style.boxSizing = "border-box";
+  style.width = Math.max(0, textarea.clientWidth) + "px";
+  style.borderLeftWidth = "0";
+  style.borderRightWidth = "0";
+  style.height = "auto";
+  style.overflow = "hidden";
+  // 井号及之后的文字放进 span：offsetLeft/Top 取的是第一行起点，而不是整段的包围盒
+  const marker = document.createElement("span");
+  marker.textContent = textarea.value.slice(pos) || ".";
+  mirror.append(document.createTextNode(textarea.value.slice(0, pos)), marker);
+  shadow.appendChild(mirror);
+  document.documentElement.appendChild(host);
+  try {
+    const borderLeft = parseFloat(computed.borderLeftWidth) || 0;
+    const lineHeight = parseFloat(computed.lineHeight) || 18;
+    const range = document.createRange();
+    const node = marker.firstChild;
+    range.setStart(node, 0);
+    // 只框第一个字符：整段 span 的包围盒在换行后会向左扩到行首
+    range.setEnd(node, Math.min(1, node.length));
+    const mark = range.getClientRects()[0] || range.getBoundingClientRect();
+    const base = mirror.getBoundingClientRect();
+    return {
+      // 镜像保留了上边框，top 差值已含边框；左右边框被置 0，left 要加回编辑框自己的
+      top: mark.top - base.top,
+      left: mark.left - base.left + borderLeft,
+      height: mark.height || lineHeight,
+    };
+  } finally {
+    host.remove();
+  }
+}
+
+// 在 textarea 上挂 # 补全：输入 #词 弹出候选，↑↓ 换选、Enter/Tab 插入、Esc/失焦关闭。
+// 候选贴着井号下方（放不下则翻到井号上方），对齐移动端 TagSuggestionPopup / 网页 TagSuggestions。
+// 页内编辑器的浮层盖在 documentElement 上且 z-index 拉满，候选必须挂到同一层才能盖住编辑框。
+// getTags 由调用方提供（popup 直连 / 页内经后台代理）；插入格式与 web 端 TagSuggestions
+// 对齐：#tag + 尾随空格，词尾后已是空格则只补 #tag。返回 destroy 供编辑器卸载时清理。
+function attachTagSuggest(textarea, getTags) {
+  let drop = null;
+  let items = [];
+  let selected = 0;
+  let caret = null;
+  let trackRaf = 0;
+  let placedKey = "";
+  let seenWidth = -1;
+
+  function currentToken() {
+    const pos = textarea.selectionStart ?? textarea.value.length;
+    const m = /#[^#\s\r\n]{0,64}$/.exec(textarea.value.slice(0, pos));
+    return m ? { start: pos - m[0].length, end: pos, query: m[0].slice(1) } : null;
+  }
+
+  function css(el, decls) {
+    for (const [prop, value] of Object.entries(decls)) el.style.setProperty(prop, value, "important");
+  }
+
+  // 锚在井号左下角。编辑框被拖动、页面滚动时矩形会变，调用方按需重算。
+  function place() {
+    if (!drop || !caret || !textarea.isConnected) return;
+    const rect = textarea.getBoundingClientRect();
+    const gap = 4;
+    const margin = 8;
+    let anchorX = rect.left + caret.left - textarea.scrollLeft;
+    let lineTop = rect.top + caret.top - textarea.scrollTop;
+    if (anchorX < rect.left) anchorX = rect.left + margin;
+    if (anchorX > rect.right - margin) anchorX = rect.right - margin;
+    if (lineTop < rect.top) lineTop = rect.top;
+    if (lineTop > rect.bottom - caret.height) lineTop = Math.max(rect.top, rect.bottom - caret.height);
+    const menuW = drop.offsetWidth || 160;
+    const menuH = drop.offsetHeight || 40;
+    let left = anchorX;
+    let top = lineTop + caret.height + gap;
+    if (left + menuW > window.innerWidth - margin) left = window.innerWidth - menuW - margin;
+    left = Math.max(margin, left);
+    if (top + menuH > window.innerHeight - margin) top = lineTop - menuH - gap;
+    top = Math.max(margin, top);
+    css(drop, { left: Math.round(left) + "px", top: Math.round(top) + "px", bottom: "auto" });
+  }
+
+  function track() {
+    if (!drop) return;
+    const rect = textarea.getBoundingClientRect();
+    // 拖右下角改宽度会改变换行，井号的横坐标跟着变，需要重测
+    if (rect.width !== seenWidth && rect.width > 0) {
+      seenWidth = rect.width;
+      const t = currentToken();
+      if (t) {
+        try {
+          caret = caretInTextarea(textarea, t.start);
+        } catch (err) {
+          /* 沿用上一次量到的坐标 */
+        }
+      }
+    }
+    const key = [rect.left, rect.top, textarea.scrollTop, textarea.scrollLeft, caret && caret.left, caret && caret.top].join(":");
+    if (key !== placedKey) {
+      placedKey = key;
+      place();
+    }
+    trackRaf = requestAnimationFrame(track);
+  }
+
+  function stopTrack() {
+    cancelAnimationFrame(trackRaf);
+    trackRaf = 0;
+    placedKey = "";
+    seenWidth = -1;
+    textarea.removeEventListener("scroll", place);
+  }
+
+  function insert(tag) {
+    const t = currentToken();
+    if (!t) {
+      hide();
+      return;
+    }
+    const suffix = textarea.value[t.end] === " " ? "" : " ";
+    textarea.setRangeText("#" + tag + suffix, t.start, t.end, "end");
+    hide();
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    textarea.focus();
+  }
+
+  function hide() {
+    stopTrack();
+    caret = null;
+    if (drop) {
+      drop.remove();
+      drop = null;
+    }
+    document.removeEventListener("pointerdown", onDocPointerDown, true);
+  }
+
+  function onDocPointerDown(e) {
+    if (drop && e.target !== textarea && !drop.contains(e.target)) hide();
+  }
+
+  function render() {
+    drop.textContent = "";
+    items.forEach((tag, i) => {
+      const row = document.createElement("div");
+      row.textContent = "#" + tag;
+      css(row, {
+        display: "block",
+        margin: "0",
+        padding: "6px 10px",
+        "border-radius": "6px",
+        cursor: "pointer",
+        "white-space": "nowrap",
+        overflow: "hidden",
+        "text-overflow": "ellipsis",
+        background: i === selected ? "#eef0f6" : "transparent",
+      });
+      row.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        insert(tag);
+      });
+      drop.appendChild(row);
+    });
+    place();
+  }
+
+  async function refresh() {
+    const t = currentToken();
+    if (!t || !textarea.isConnected) {
+      hide();
+      return;
+    }
+    let list;
+    try {
+      list = await getTags();
+    } catch {
+      list = null;
+    }
+    // 等待期间光标可能已移动，按最新状态重算
+    const latest = currentToken();
+    if (!latest || !list) {
+      hide();
+      return;
+    }
+    const q = latest.query.toLowerCase();
+    const starts = [];
+    const contains = [];
+    for (const tag of list) {
+      const l = tag.toLowerCase();
+      if (l.startsWith(q)) starts.push(tag);
+      else if (l.includes(q)) contains.push(tag);
+    }
+    items = [...starts.sort((a, b) => a.localeCompare(b)), ...contains.sort((a, b) => a.localeCompare(b))].slice(0, 8);
+    if (!items.length) {
+      hide();
+      return;
+    }
+    try {
+      caret = caretInTextarea(textarea, latest.start);
+    } catch (err) {
+      hide();
+      return;
+    }
+    selected = 0;
+    if (!drop) {
+      drop = document.createElement("div");
+      css(drop, {
+        position: "fixed",
+        "z-index": "2147483647",
+        "min-width": "120px",
+        "max-width": "240px",
+        "max-height": "240px",
+        "overflow-x": "hidden",
+        "overflow-y": "auto",
+        margin: "0",
+        padding: "4px",
+        "border-radius": "10px",
+        background: "#ffffff",
+        border: "1px solid #e2e0dd",
+        "box-shadow": "0 8px 28px rgba(0, 0, 0, 0.18)",
+        "box-sizing": "border-box",
+        "font-family": '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+        "font-size": "13px",
+        "line-height": "1.45",
+        color: "#1c1c1e",
+      });
+      // 页内笔记浮层盖住整个 body，候选挂到 documentElement 才能叠在编辑框上面
+      const mount = textarea.closest(".cflow-note") ? document.documentElement : document.body;
+      mount.appendChild(drop);
+      document.addEventListener("pointerdown", onDocPointerDown, true);
+      textarea.addEventListener("scroll", place);
+    }
+    render();
+    if (!trackRaf) track();
+  }
+
+  function onKeyDown(e) {
+    if (!drop) return;
+    if (e.key === "Escape") {
+      hide();
+      e.stopPropagation(); // 页内编辑器的 Esc 是关窗，先只关候选
+      return;
+    }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      selected = (selected + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length;
+      render();
+      e.preventDefault();
+      return;
+    }
+    if ((e.key === "Enter" || e.key === "Tab") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (items[selected]) insert(items[selected]);
+      e.preventDefault();
+    }
+  }
+
+  textarea.addEventListener("input", refresh);
+  textarea.addEventListener("keydown", onKeyDown);
+
+  return function destroy() {
+    hide();
+    textarea.removeEventListener("input", refresh);
+    textarea.removeEventListener("keydown", onKeyDown);
+  };
+}
+
+/* ---------- 列表编辑（popup 记笔记与页内编辑器共用） ---------- */
+
+const LIST_INDENT = "    ";
+const TODO_LINE_RE = /^( *)- \[[xX ]\](.*)$/;
+const UL_LINE_RE = /^( *)- (.*)$/;
+const OL_LINE_RE = /^( *)(\d+)\. (.*)$/;
+
+// 选区覆盖到的行。选区正好停在下一行行首时不含那一行（只框住了换行符）。
+function listLineSpan(value, start, end) {
+  const from = Math.min(start, end);
+  let to = Math.max(start, end);
+  if (to > from && value.charAt(to - 1) === "\n") to -= 1;
+  const blockStart = value.lastIndexOf("\n", from - 1) + 1;
+  const nl = value.indexOf("\n", to);
+  const blockEnd = nl === -1 ? value.length : nl;
+  return { blockStart, blockEnd };
+}
+
+function indentLineBlock(block, add) {
+  const lines = block.split("\n");
+  const deltas = [];
+  const next = lines.map((line) => {
+    if (add) {
+      deltas.push(LIST_INDENT.length);
+      return LIST_INDENT + line;
+    }
+    let n = 0;
+    while (n < LIST_INDENT.length && line.charAt(n) === " ") n += 1;
+    deltas.push(-n);
+    return line.slice(n);
+  });
+  return { text: next.join("\n"), lines, deltas };
+}
+
+// 把块内的原始偏移映射到缩进之后。落在被删掉的前导空格里时收到行首。
+function mapIndentIndex(pos, blockStart, blockEnd, lines, deltas) {
+  if (pos < blockStart) return pos;
+  if (pos > blockEnd) {
+    let total = 0;
+    for (const d of deltas) total += d;
+    return pos + total;
+  }
+  let orig = blockStart;
+  let shifted = blockStart;
+  for (let i = 0; i < lines.length; i++) {
+    const lineEnd = orig + lines[i].length;
+    if (pos <= lineEnd) {
+      const col = pos - orig;
+      const nextCol = deltas[i] >= 0 ? col + deltas[i] : Math.max(0, col + deltas[i]);
+      return shifted + nextCol;
+    }
+    if (i === lines.length - 1) break;
+    orig = lineEnd + 1;
+    shifted += lines[i].length + deltas[i] + 1;
+  }
+  let total = 0;
+  for (const d of deltas) total += d;
+  return pos + total;
+}
+
+function applyIndent(textarea, add) {
+  const value = textarea.value;
+  const start = textarea.selectionStart ?? 0;
+  const end = textarea.selectionEnd ?? start;
+  const { blockStart, blockEnd } = listLineSpan(value, start, end);
+  const block = value.slice(blockStart, blockEnd);
+  const { text, lines, deltas } = indentLineBlock(block, add);
+  if (deltas.every((d) => d === 0)) return;
+  const nextStart = mapIndentIndex(start, blockStart, blockEnd, lines, deltas);
+  const nextEnd = mapIndentIndex(end, blockStart, blockEnd, lines, deltas);
+  textarea.setRangeText(text, blockStart, blockEnd, "end");
+  const a = Math.min(nextStart, nextEnd);
+  const b = Math.max(nextStart, nextEnd);
+  textarea.setSelectionRange(a, b);
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+// 光标在行尾时，按当前行的列表标记续一行。待办优先于无序列表（"- [ ]" 也以 "- " 开头）。
+function listContinuation(line) {
+  const todo = TODO_LINE_RE.exec(line);
+  if (todo) return todo[1] + "- [ ] ";
+  const ul = UL_LINE_RE.exec(line);
+  if (ul) return ul[1] + "- ";
+  const ol = OL_LINE_RE.exec(line);
+  if (ol) return ol[1] + (parseInt(ol[2], 10) + 1) + ". ";
+  return null;
+}
+
+function applyListContinue(textarea) {
+  if ((textarea.selectionStart ?? 0) !== (textarea.selectionEnd ?? 0)) return false;
+  const pos = textarea.selectionStart ?? 0;
+  const value = textarea.value;
+  const lineStart = value.lastIndexOf("\n", pos - 1) + 1;
+  const nl = value.indexOf("\n", pos);
+  const lineEnd = nl === -1 ? value.length : nl;
+  if (pos !== lineEnd) return false;
+  const prefix = listContinuation(value.slice(lineStart, lineEnd));
+  if (prefix == null) return false;
+  textarea.setRangeText("\n" + prefix, pos, pos, "end");
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  return true;
+}
+
+// 在 attachTagSuggest 之后调用：候选列表打开时 Tab/Enter 已经 preventDefault，这里不再处理。
+function attachListEditing(textarea) {
+  function onKeyDown(e) {
+    if (e.defaultPrevented || e.isComposing || e.keyCode === 229) return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key === "Tab") {
+      e.preventDefault();
+      applyIndent(textarea, !e.shiftKey);
+      return;
+    }
+    if (e.key === "Enter" && !e.shiftKey && applyListContinue(textarea)) {
+      e.preventDefault();
+    }
+  }
+  textarea.addEventListener("keydown", onKeyDown);
+  return function destroy() {
+    textarea.removeEventListener("keydown", onKeyDown);
+  };
+}
+
 /* ---------- Toast ---------- */
 
 let toastTimer = null;
@@ -401,6 +884,9 @@ Object.assign(globalThis, {
   DEFAULT_SPACE_NAME,
   DEFAULT_SERVER,
   MAX_TEXT_LENGTH,
+  NOTE_DRAFT_KEY,
+  PAGE_DRAFT_KEY,
+  clearDrafts,
   state,
   ICONIFY_API_HOST,
   ICON_CACHE_KEY,
@@ -412,10 +898,12 @@ Object.assign(globalThis, {
   loadSettings,
   persist,
   isConfigured,
-  normalizeServer,
   requestHostPermission,
   api,
   fetchSpaces,
+  fetchTags,
+  attachTagSuggest,
+  attachListEditing,
   describeError,
   markdownLink,
   buildSelectionContent,

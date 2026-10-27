@@ -310,3 +310,206 @@
 .cflow-overlay [hidden] {
   display: none !important;
 }
+
+/* ---------- 页内浮动笔记编辑器（note.js，「cflow笔记模式」） ---------- */
+
+.cflow-note {
+  position: fixed;
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 10px;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 13px;
+  color: #1c1c1e;
+  animation: cflow-pop-in 0.16s ease;
+}
+
+.cflow-note * {
+  box-sizing: border-box;
+}
+
+.cflow-note .cflow-note-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  margin-bottom: 8px;
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+
+.cflow-note .cflow-note-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1c1c1e;
+}
+
+.cflow-note .cflow-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #78716c;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.cflow-note .cflow-close:hover {
+  background: #f5f5f4;
+  color: #1c1c1e;
+}
+
+.cflow-note .cflow-note-editor {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e7e5e4;
+  border-radius: 10px;
+  background: #fafaf9;
+  color: #1c1c1e;
+  font: inherit;
+  line-height: 1.6;
+  outline: none;
+  resize: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cflow-note .cflow-note-editor:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px #eef2ff;
+}
+
+.cflow-note .cflow-note-editor::placeholder {
+  color: #a8a29e;
+}
+
+.cflow-note .cflow-note-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  margin-top: 8px;
+}
+
+.cflow-note .cflow-note-space {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #e7e5e4;
+  border-radius: 9px;
+  background: #fafaf9;
+  color: #1c1c1e;
+  font: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.cflow-note .cflow-note-space:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px #eef2ff;
+}
+
+.cflow-note .cflow-note-vtime {
+  flex: none;
+  padding: 8px 12px;
+  border: 1px solid #e7e5e4;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #1c1c1e;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.cflow-note .cflow-note-vtime:hover {
+  background: #f5f5f4;
+  border-color: #d6d3d1;
+}
+
+.cflow-note .cflow-note-save {
+  flex: none;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 9px;
+  background: #6366f1;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.cflow-note .cflow-note-save:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.cflow-note .cflow-note-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.cflow-note .cflow-note-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+/* 角标斜线视觉 */
+.cflow-note .cflow-note-resize::before {
+  content: "";
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #d6d3d1;
+  border-bottom: 2px solid #d6d3d1;
+  border-bottom-right-radius: 3px;
+}
+
+.cflow-note .cflow-note-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 52px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  padding: 7px 13px;
+  border-radius: 8px;
+  background: #1c1c1e;
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  word-break: break-all;
+  animation: cflow-fade-in 0.18s ease;
+}
+
+.cflow-note .cflow-note-toast.toast-error {
+  background: #dc2626;
+}
+
+.cflow-note [hidden] {
+  display: none !important;
+}

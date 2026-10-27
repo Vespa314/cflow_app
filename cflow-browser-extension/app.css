@@ -60,6 +60,11 @@ body {
   display: none !important;
 }
 
+/* 类里设过 display 的元素，hidden 属性会被作者样式盖过 UA 默认隐藏，必须显式兜底 */
+[hidden] {
+  display: none !important;
+}
+
 /* ---------- 顶栏 ---------- */
 
 .topbar {
@@ -74,6 +79,8 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
 .brand-logo {
@@ -86,10 +93,49 @@ body {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 4px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.note-mode-btn:hover:not(:disabled) {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .note-mode-btn:hover:not(:disabled) {
+    color: #14142a;
+  }
+}
+
+.note-mode-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .topbar-actions {
   display: flex;
+  flex: none;
   gap: 2px;
 }
 
@@ -469,6 +515,105 @@ body {
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/* ---------- 设置视图：扫码登录 ---------- */
+
+.btn-qr-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px;
+}
+
+.qr-login-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.server-line {
+  text-align: center;
+  font-size: 11px;
+  color: var(--faint);
+}
+
+/* ---------- 设置视图：扫码登录（popup 内嵌二维码） ---------- */
+
+.qr-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.qr-box {
+  position: relative;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--bg);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.qr-expired-mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.qr-status {
+  min-height: 2.6em;
+  max-width: 260px;
+  text-align: center;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.qr-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-ghost {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.btn-ghost:hover {
+  background: var(--hover);
+  color: var(--fg);
 }
 
 /* ---------- Toast ---------- */
