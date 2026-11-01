@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "cflow 快存",
+  "name": "cflow",
   "description": "一键把网页保存为 cflow 笔记，或随时速记一条到指定空间",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "permissions": [
     "storage",
     "contextMenus",

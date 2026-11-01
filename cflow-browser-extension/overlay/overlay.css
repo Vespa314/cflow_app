@@ -426,7 +426,8 @@
   box-shadow: 0 0 0 3px #eef2ff;
 }
 
-.cflow-note .cflow-note-vtime {
+/* 工具按钮（插入网址 / 插入视频时间）共用 */
+.cflow-note .cflow-note-tool {
   flex: none;
   padding: 8px 12px;
   border: 1px solid #e7e5e4;
@@ -439,7 +440,7 @@
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.cflow-note .cflow-note-vtime:hover {
+.cflow-note .cflow-note-tool:hover {
   background: #f5f5f4;
   border-color: #d6d3d1;
 }

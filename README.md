@@ -11,11 +11,11 @@
 - **整页转发**：点插件图标，选个空间，当前网页即存为一条笔记
 - **摘录转发**：框选一段文字 → 右键「发送到 cflow 笔记」→ 选空间保存（自动附来源链接）
 - **快捷笔记**：插件内置编辑器，不必离开浏览器就能写一条，草稿自动保存
-- **页内笔记**：右键「cflow笔记模式」，或在插件弹窗顶部点「记笔记模式」，在当前网页上打开可拖拽的浮动编辑器
+- **页内笔记**：右键「cflow笔记模式」，或在插件弹窗顶部点「记笔记模式」，在当前网页上打开可拖拽的浮动编辑器，可一键插入当前网页链接或视频时间点
 
 ### 安装
 
-**方式一 · Chrome 官方应用商店（推荐）**：打开 [cflow 快存 - Chrome 应用商店](https://chromewebstore.google.com/detail/cflow-%E5%BF%AB%E5%AD%98/loifopopfaaeelijpgdpoodlaeobboaa)，点 **添加至 Chrome** 即可，Edge 等 Chromium 内核浏览器也可以直接从该链接安装。安装后由商店自动保持更新。
+**方式一 · Chrome 官方应用商店（推荐）**：打开 [cflow - Chrome 应用商店](https://chromewebstore.google.com/detail/cflow-%E5%BF%AB%E5%AD%98/loifopopfaaeelijpgdpoodlaeobboaa)，点 **添加至 Chrome** 即可，Edge 等 Chromium 内核浏览器也可以直接从该链接安装。安装后由商店自动保持更新。
 
 **方式二 · 本仓库源码手动加载**（适合自行修改插件）：
 

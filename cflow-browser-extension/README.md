@@ -1,4 +1,4 @@
-# cflow 快存（Chrome 插件）
+# cflow（Chrome 插件）
 
 四种方式把内容存进 cflow：
 

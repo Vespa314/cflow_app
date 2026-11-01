@@ -63,9 +63,14 @@
   const spaceSelect = document.createElement("select");
   spaceSelect.className = "cflow-note-space";
   spaceSelect.setAttribute("aria-label", "保存到空间");
+  const linkBtn = document.createElement("button");
+  linkBtn.type = "button";
+  linkBtn.className = "cflow-note-tool";
+  linkBtn.textContent = "插入网址";
+  linkBtn.addEventListener("click", insertPageLink);
   const videoBtn = document.createElement("button");
   videoBtn.type = "button";
-  videoBtn.className = "cflow-note-vtime";
+  videoBtn.className = "cflow-note-tool";
   videoBtn.textContent = "插入视频时间";
   videoBtn.hidden = true;
   videoBtn.addEventListener("click", insertVideoTime);
@@ -74,7 +79,7 @@
   saveBtn.className = "cflow-note-save";
   saveBtn.textContent = "保存";
   saveBtn.addEventListener("click", save);
-  actions.append(spaceSelect, videoBtn, saveBtn);
+  actions.append(spaceSelect, linkBtn, videoBtn, saveBtn);
 
   const resizeHandle = document.createElement("div");
   resizeHandle.className = "cflow-note-resize";
@@ -260,14 +265,24 @@
   });
   destroyListEditing = attachListEditing(editor);
 
+  /* ---------- 插入当前网页链接 ---------- */
+
+  function insertPageLink() {
+    const insert = markdownLink(document.title, location.href);
+    const pos = editor.selectionStart ?? editor.value.length;
+    editor.setRangeText(insert, pos, pos, "end");
+    editor.focus();
+    scheduleDraft();
+  }
+
   /* ---------- 视频时间插入 ---------- */
 
-  // 页面里有视频正在播放才显示按钮；多路播放取画面最大的
-  function playingVideo() {
+  // 页面里存在视频（暂停也算）就显示按钮；多路取画面最大的
+  function pageVideo() {
     let best = null;
     let bestArea = 0;
     for (const v of document.querySelectorAll("video")) {
-      if (v.paused || v.ended || v.readyState < 2) continue;
+      if (v.readyState < 2) continue;
       const r = v.getBoundingClientRect();
       const area = r.width * r.height;
       if (area > bestArea) {
@@ -278,12 +293,11 @@
     return best;
   }
 
-  let lastVideo = null;
-  videoProbe = setInterval(() => {
-    const v = playingVideo();
-    if (v) lastVideo = v;
-    videoBtn.hidden = !v;
-  }, 800);
+  function probeVideo() {
+    videoBtn.hidden = !pageVideo();
+  }
+  videoProbe = setInterval(probeVideo, 800);
+  probeVideo();
 
   function formatTime(totalSec) {
     const sec = Math.max(0, Math.floor(totalSec));
@@ -296,10 +310,9 @@
   }
 
   function insertVideoTime() {
-    // 检测间隙里刚暂停的视频也允许插入（画面还在），完全找不到才提示
-    const v = playingVideo() || (lastVideo && lastVideo.isConnected ? lastVideo : null);
+    const v = pageVideo();
     if (!v) {
-      toast("没有正在播放的视频", true);
+      toast("页面上没有视频", true);
       return;
     }
     const stamp = formatTime(v.currentTime) + " ";
