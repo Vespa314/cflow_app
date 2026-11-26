@@ -10,7 +10,23 @@
 
 const DEFAULT_SPACE_NAME = "默认空间";
 const DEFAULT_SERVER = "https://cflow.cc";
-// 后端 api/v1/memo.go 的 maxContentLength 为 65535 **字节**（Go len() 按字节），
+// 写幂等：创建笔记的提交键按「完整创建载荷」绑定（正文+附件+空间+密级）——
+// 载荷不变失败重试复用同键（响应丢失重试不重复建），任一字段变化即换新键，
+// 成功后由调用方 resetMemoIdem() 清空（下次必新键）。
+const _memoIdem = { payload: null, key: "" };
+function memoIdemKeyFor(payloadStr) {
+  if (_memoIdem.payload !== payloadStr) {
+    _memoIdem.payload = payloadStr;
+    _memoIdem.key = crypto.randomUUID();
+  }
+  return _memoIdem.key;
+}
+function buildMemoIdemPayload(content, resourceIdList, spaceId, secretLv) {
+  return JSON.stringify([content, resourceIdList, spaceId, secretLv]);
+}
+function resetMemoIdem() { _memoIdem.payload = null; _memoIdem.key = ""; }
+
+// 服务端正文上限 65535 **字节**（按字节计，不按字符数），
 // 截断必须按 UTF-8 字节计：按字符数截 60000 时中文（每字 3 字节）约 2.2 万字即超限被拒
 const MAX_TEXT_LENGTH = 60000;
 
@@ -56,9 +72,20 @@ function persist(patch) {
 // 本地草稿键（popup 面板 / 页内编辑器），换账号时须一并清除
 const NOTE_DRAFT_KEY = "noteDraft";
 const PAGE_DRAFT_KEY = "pageNoteDraft";
+// 页内编辑器的待上传图片：每张一个键（值含 dataUrl，体积大，不随正文草稿重写）。
+// 后台上传时按键回读，图片数据不走消息通道（消息上限 64MiB，且大载荷序列化开销高）
+const PAGE_IMAGE_KEY_PREFIX = "pageNoteImage:";
+// 单条笔记附件上限，与安卓端一致
+const MAX_ATTACHMENTS = 9;
+
+function pageImageKey(id) {
+  return PAGE_IMAGE_KEY_PREFIX + id;
+}
 
 async function clearDrafts() {
-  await persist({ [NOTE_DRAFT_KEY]: null, [PAGE_DRAFT_KEY]: null });
+  const data = await chrome.storage.local.get(null);
+  const imageKeys = Object.keys(data || {}).filter((k) => k.startsWith(PAGE_IMAGE_KEY_PREFIX));
+  await chrome.storage.local.remove([NOTE_DRAFT_KEY, PAGE_DRAFT_KEY, ...imageKeys]);
 }
 
 function isConfigured() {
@@ -79,13 +106,21 @@ async function requestHostPermission(server) {
   return chrome.permissions.request({ origins });
 }
 
-async function api(path, options = {}) {
+function authHeaders() {
   // 未登录（扫码登录流程）时不带 Authorization，空 Bearer 反而干扰部分网关
-  const headers = { "Content-Type": "application/json" };
-  if (state.token) headers.Authorization = "Bearer " + state.token;
+  return state.token ? { Authorization: "Bearer " + state.token } : {};
+}
+
+async function api(path, options = {}) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}), ...authHeaders() };
+  return fetchJson(state.server + path, { ...options, headers });
+}
+
+// 请求 + 响应归一化（api 与附件上传共用）：网络异常打标，非 2xx 抛带 status 的 Error
+async function fetchJson(url, init) {
   let res;
   try {
-    res = await fetch(state.server + path, { ...options, headers });
+    res = await fetch(url, init);
   } catch {
     const err = new Error("无法连接服务器，请检查网络");
     err.network = true;
@@ -104,6 +139,28 @@ async function api(path, options = {}) {
     throw err;
   }
   return body;
+}
+
+// 附件上传（POST /api/v1/resource/blob，与安卓端同一接口），返回资源对象。
+// 图片由页内编辑器以 dataUrl 存在 storage，后台按键回读后在这里还原成文件；
+// multipart 边界必须由 fetch 生成，不能带 api() 默认的 JSON Content-Type。
+async function uploadResource(dataUrl, filename, mimeType) {
+  const form = new FormData();
+  form.append("file", dataUrlToBlob(dataUrl, mimeType), filename);
+  return fetchJson(state.server + "/api/v1/resource/blob", {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+}
+
+function dataUrlToBlob(dataUrl, fallbackType) {
+  const m = /^data:([^;,]*);base64,(.*)$/s.exec(dataUrl);
+  if (!m) throw new Error("图片数据无效");
+  const bin = atob(m[2]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: m[1] || fallbackType || "application/octet-stream" });
 }
 
 async function fetchSpaces() {
@@ -148,7 +205,7 @@ const ICONIFY_API_HOST = "https://api.iconify.design";
 const ICON_CACHE_KEY = "iconSvgCache";
 const ICON_CACHE_MAX = 200;
 
-// web 端自绘特殊图标（web/src/components/Icons.tsx 的 ProgressIcon / TimeProgressIcon），随 web 端同步维护
+// 网页端自绘的两个特殊图标（progress / time_progress），随网页端同步维护
 const SPECIAL_ICON_SVGS = {
   progress:
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M4 5.5h8a2.5 2.5 0 0 1 0 5H4a2.5 2.5 0 0 1 0-5M0 8a4 4 0 0 1 4-4h8a4 4 0 0 1 0 8H4a4 4 0 0 1-4-4m4-1a1 1 0 0 0 0 2h5a1 1 0 0 0 0-2z" clip-rule="evenodd"/></svg>',
@@ -165,7 +222,7 @@ function pascalToKebab(name) {
 
 /**
  * 解析图标名的拉取目标，返回 null 表示非图标名形态（emoji / 文字，按字面渲染）。
- * 语法与 web 端 parseIconName 对齐：特殊名 / lucide:kebab / 存量 PascalCase lucide / 其他 prefix:name（iconify）。
+ * 语法与网页端一致：特殊名 / lucide:kebab / 存量 PascalCase lucide / 其他 prefix:name（iconify）。
  * 插件不带 lucide 字典，lucide 名统一走 iconify 的 lucide 图标集在线拉取。
  */
 function resolveIconRef(raw) {
@@ -515,10 +572,10 @@ function caretInTextarea(textarea, position) {
 }
 
 // 在 textarea 上挂 # 补全：输入 #词 弹出候选，↑↓ 换选、Enter/Tab 插入、Esc/失焦关闭。
-// 候选贴着井号下方（放不下则翻到井号上方），对齐移动端 TagSuggestionPopup / 网页 TagSuggestions。
+// 候选贴着井号下方（放不下则翻到井号上方），对齐移动端与网页端的标签候选。
 // 页内编辑器的浮层盖在 documentElement 上且 z-index 拉满，候选必须挂到同一层才能盖住编辑框。
-// getTags 由调用方提供（popup 直连 / 页内经后台代理）；插入格式与 web 端 TagSuggestions
-// 对齐：#tag + 尾随空格，词尾后已是空格则只补 #tag。返回 destroy 供编辑器卸载时清理。
+// getTags 由调用方提供（popup 直连 / 页内经后台代理）；插入格式与网页端一致：
+// #tag + 尾随空格，词尾后已是空格则只补 #tag。返回 destroy 供编辑器卸载时清理。
 function attachTagSuggest(textarea, getTags) {
   let drop = null;
   let items = [];
@@ -882,10 +939,16 @@ function toast(msg, isError) {
 
 Object.assign(globalThis, {
   DEFAULT_SPACE_NAME,
+  memoIdemKeyFor,
+  buildMemoIdemPayload,
+  resetMemoIdem,
   DEFAULT_SERVER,
   MAX_TEXT_LENGTH,
   NOTE_DRAFT_KEY,
   PAGE_DRAFT_KEY,
+  PAGE_IMAGE_KEY_PREFIX,
+  pageImageKey,
+  MAX_ATTACHMENTS,
   clearDrafts,
   state,
   ICONIFY_API_HOST,
@@ -900,6 +963,8 @@ Object.assign(globalThis, {
   isConfigured,
   requestHostPermission,
   api,
+  uploadResource,
+  dataUrlToBlob,
   fetchSpaces,
   fetchTags,
   attachTagSuggest,

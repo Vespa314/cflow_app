@@ -42,15 +42,19 @@ async function saveToSpace(space, btn) {
   popupState.saving = true;
   setSpaceListSaving(true);
   try {
+    const _content = buildContent();
+    const _payload = buildMemoIdemPayload(_content, [], space.spaceId, 0);
     await api("/api/v1/memo", {
       method: "POST",
+      headers: { "Idempotency-Key": memoIdemKeyFor(_payload) },
       body: JSON.stringify({
-        content: buildContent(),
+        content: _content,
         secretLv: 0, // 固定发普通（非敏感）等级，不跟随空间默认
         resourceIdList: [],
         spaceId: space.spaceId,
       }),
     });
+    resetMemoIdem();
     state.lastSpaceId = space.spaceId;
     await persist({ lastSpaceId: space.spaceId });
     markSaved(btn);
@@ -180,8 +184,10 @@ async function sendNote() {
   btn.disabled = true;
   btn.textContent = "发送中…";
   try {
+    const _payload2 = buildMemoIdemPayload(content, [], spaceId, 0);
     await api("/api/v1/memo", {
       method: "POST",
+      headers: { "Idempotency-Key": memoIdemKeyFor(_payload2) },
       body: JSON.stringify({
         content,
         secretLv: 0, // 与转发一致，固定发普通（非敏感）等级
@@ -189,6 +195,7 @@ async function sendNote() {
         spaceId,
       }),
     });
+    resetMemoIdem();
     state.lastSpaceId = spaceId;
     await persist({ lastSpaceId: spaceId, [DRAFT_KEY]: null });
     noteEditor().value = "";
@@ -252,8 +259,8 @@ async function saveSettings() {
 
 /* ---------- 扫码登录（设置页内嵌二维码） ---------- */
 
-// 与登录页 QrLoginPanel 同一组 pairing/web/* 接口：client=extension，approved 后
-// 服务端签发描述「浏览器插件」的 access token（而非登录 cookie），凭 nonce 一次性领取。
+// 与网页端扫码登录同一组 pairing/web/* 接口：client=extension，approved 后
+// 服务端签发描述「浏览器插件」的 access token，凭 nonce 一次性领取。
 // popup 关闭轮询即停、会话 5 分钟后自然过期，重开点刷新即可，无需独立窗口。
 
 const QR_POLL_INTERVAL = 1500;
@@ -315,7 +322,7 @@ async function startQrLogin() {
   try {
     data = await api("/api/v1/pairing/web/start", {
       method: "POST",
-      // origin 修正反代丢 X-Forwarded-Proto 时二维码退化成 http（服务端校验 host 一致才采纳）
+      // 显式带 origin，避免反向代理未透传协议时二维码链接退化成 http
       body: JSON.stringify({ client: "extension", origin: DEFAULT_SERVER }),
     });
   } catch (err) {

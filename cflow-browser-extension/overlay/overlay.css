@@ -426,7 +426,7 @@
   box-shadow: 0 0 0 3px #eef2ff;
 }
 
-/* 工具按钮（插入网址 / 插入视频时间）共用 */
+/* 工具按钮（插入网址 / 插入视频时间 / 截取视频画面）共用 */
 .cflow-note .cflow-note-tool {
   flex: none;
   padding: 8px 12px;
@@ -437,12 +437,17 @@
   font: inherit;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
-.cflow-note .cflow-note-tool:hover {
+.cflow-note .cflow-note-tool:hover:not(:disabled) {
   background: #f5f5f4;
   border-color: #d6d3d1;
+}
+
+.cflow-note .cflow-note-tool:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .cflow-note .cflow-note-save {
@@ -455,6 +460,7 @@
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
   transition: background 0.15s ease, opacity 0.15s ease;
 }
 
@@ -465,6 +471,105 @@
 .cflow-note .cflow-note-save:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/* 视频工具行（页面有视频才显示），与底部操作行之间隔着 ROW_GAP（note.js 按此增减面板高度） */
+.cflow-note .cflow-note-videobar {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ---------- 图片池缩略图条 ---------- */
+
+/* 上右各留 6px 给溢出缩略图的 × 按钮（overflow-x:auto 会把 y 轴一并裁切） */
+.cflow-note .cflow-note-thumbs {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 6px 6px 2px 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #e7e5e4 transparent;
+}
+
+.cflow-note .cflow-note-thumbs::-webkit-scrollbar {
+  height: 6px;
+}
+
+.cflow-note .cflow-note-thumbs::-webkit-scrollbar-thumb {
+  background: #e7e5e4;
+  border-radius: 3px;
+}
+
+.cflow-note .cflow-note-thumb {
+  position: relative;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  animation: cflow-pop-in 0.16s ease;
+}
+
+.cflow-note .cflow-note-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1px solid #e7e5e4;
+  border-radius: 10px;
+  background: #f5f5f4;
+  object-fit: cover;
+}
+
+/* 页面 CSP 拦掉 data: 图片时退成占位块（note.js 挂 thumb-broken） */
+.cflow-note .cflow-note-thumb.thumb-broken img {
+  visibility: hidden;
+}
+
+.cflow-note .cflow-note-thumb.thumb-broken::before {
+  content: "🖼";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #d6d3d1;
+  border-radius: 10px;
+  background: #fafaf9;
+  font-size: 20px;
+}
+
+.cflow-note .cflow-note-thumb-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(28, 28, 30, 0.62);
+  color: #ffffff;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.cflow-note .cflow-note-thumb-remove:hover {
+  background: #dc2626;
+  transform: scale(1.12);
+}
+
+/* 保存进行中锁住图片增删 */
+.cflow-note.saving .cflow-note-thumb-remove {
+  pointer-events: none;
+  opacity: 0.35;
 }
 
 .cflow-note .cflow-note-resize {
