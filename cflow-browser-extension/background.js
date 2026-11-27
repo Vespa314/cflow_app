@@ -203,8 +203,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "captureTab") {
     (async () => {
       try {
-        if (!sender.tab || sender.tab.id == null) throw new Error("无法读取当前页面");
-        const dataUrl = await chrome.tabs.captureVisibleTab(sender.tab.id, { format: "png" });
+        if (!sender.tab || sender.tab.windowId == null) throw new Error("无法读取当前页面");
+        // 首参是窗口 id（截该窗口当前活动标签的可见区域），不是标签 id：传标签 id 会对不上任何窗口
+        const dataUrl = await chrome.tabs.captureVisibleTab(sender.tab.windowId, { format: "png" });
         sendResponse({ ok: true, dataUrl });
       } catch (err) {
         sendResponse({ ok: false, error: "截图失败：" + (err.message || "当前页面不允许截图") });
